@@ -1,0 +1,25 @@
+#! /usr/bin/env node
+
+const WebSocket = require('ws')
+
+const wss = new WebSocket.Server({port: 9999})
+wss.on('connection', ws => {
+    ws.on('message', msg => {
+        log = JSON.parse(msg)
+        const source = log.stack.size > 0 ? `${log.stack[0].fileName}:${log.stack[0].lineNumber}` : ''
+        const at = new Date(log.at)
+        const message = log.args.map(obj => {
+            if (obj === undefined) {
+                return 'undefined'
+            } else if (obj === null) {
+                return 'null'
+            } else if (typeof obj === 'object') {
+                return JSON.stringify(obj)
+            } else {
+                return obj.toString()
+            }
+        }).join(' ')
+        process.stdout.write(`${log.name}.${log.type} \x1b[32m[${at.toLocaleTimeString()}]\x1b[m ${source}: ${message}\n`)
+
+    })
+})
