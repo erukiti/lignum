@@ -1,7 +1,7 @@
 {
   "name": "lignum",
-  "version": "1.0.0",
-  "description": "",
+  "version": "0.1.0",
+  "description": "logging tool",
   "main": "dist/bundle.js",
   "bin": {
       "lignum-server": "bin/lignum-server"
@@ -11,7 +11,7 @@
     "build": "rollup -c"
   },
   "keywords": [],
-  "author": "",
+  "author": "erukiti - SASAKI Shunsuke <erukiti+github@gmail.com>",
   "license": "Apache-2.0",
   "dependencies": {
     "bufferutil": "^3.0.1",

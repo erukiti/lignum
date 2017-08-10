@@ -1,9 +1,37 @@
 const WebSocket = require('ws')
 const st = require('stacktrace-js')
+const putConsole = require('./put-console')
+
+const isNode = typeof process === 'object' && typeof process.versions === 'object' && !!process.versions.node
 
 class Logger {
     constructor(opts) {
         this.name = opts.name
+        this.root = opts.root
+
+        const traces = st.getSync()
+        if (isNode) {
+            const path = require('path')
+            const fs = require('fs')
+            let i = 0
+            while (path.dirname(traces[i].fileName) === __dirname) {
+                i++
+            }
+            const callerPath = path.dirname(traces[i].fileName).split('/').filter(s => s !== '')
+            while (callerPath.length > 0) {
+                try {
+                    const fn = path.join('/', ...callerPath, 'package.json')
+                    const {name} = JSON.parse(fs.readFileSync(fn))
+                    this.name = name
+                    this.root = path.dirname(fn)
+                    break
+                } catch (e) {
+                    callerPath.pop()
+                }
+            }
+        }
+        this.level = this._getLogLevel(opts.level || 'info')
+
         this.logs = []
         this.isDisabled = opts.isDisabled
         this.isWsOpened = false
@@ -19,7 +47,7 @@ class Logger {
         const flushConsole = () => {
             this.state = 'standalone'
             this.ws = null
-            flush(log => this._putLogConsole(log))
+            flush(log => putConsole(log))
         }
 
         if (!this.isDisabled) {
@@ -38,31 +66,28 @@ class Logger {
         }
     }
 
-    _putLogConsole(log) {
-        const source = log.stack.size > 0 ? `${log.stack[0].fileName}:${log.stack[0].lineNumber}` : ''
-        if (!this.isNode) {
-            console.log(this.name, type, source, message)
-            return
+    setLevel(level) {
+        this.level = this._getLogLevel(level)
+    }
+
+    _getLogLevel(level) {
+        const result = ['error', 'warn', 'info', 'verbose', 'debug'].indexOf(level)
+        if (result === -1) {
+            return 2
+        } else {
+            return result
         }
-        const message = log.args.map(obj => {
-            if (obj === undefined) {
-                return 'undefined'
-            } else if (obj === null) {
-                return 'null'
-            } else if (typeof obj === 'object') {
-                return JSON.stringify(obj)
-            } else {
-                return obj.toString()
-            }
-        }).join(' ')
-        process.stdout.write(`${log.name}.${log.type} \x1b[32m[${log.at.toLocaleTimeString()}]\x1b[m ${source}: ${message}\n`)
     }
 
     _putLog(type, args) {
-        const log = {name: this.name, at: new Date(), type, args, stack: st.getSync()}
+        if (this._getLogLevel(type) > this.level) {
+            return
+        }
+
+        const log = {name: this.name, at: new Date(), root: this.root, type, args, stack: st.getSync()}
         switch (this.state) {
             case 'standalone': {
-                this._putLogConsole(log)
+                putConsole(log)
                 break
             }
             case 'opened': {
@@ -76,14 +101,16 @@ class Logger {
         }
     }
 
-    log(...args) {
-        this._putLog('log', args)
-    }
-
     info(...args) {
         this._putLog('info', args)
     }
 
+    log(...args) {
+        this._putLog('verbose', args)
+    }
+    verbose(...args) {
+        this._putLog('verbose', args)
+    }
     debug(...args) {
         this._putLog('debug', args)
     }
@@ -93,7 +120,7 @@ class Logger {
     }
 
     warn(...args) {
-        this._pugLog('warn', args)
+        this._putLog('warn', args)
     }
 }
 

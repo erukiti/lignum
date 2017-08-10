@@ -1,17 +1,13 @@
 const Logger = require('./logger')
 
-let isDisabled = false
+let logger = null
 
-const loggers = {}
-const getLogger = (name, opts = {}) => {
-    if (!loggers[name]) {
-        loggers[name] = new Logger({name, isDisabled})
-        loggers[name].log('Logging start')
+const getLogger = (opts = {}) => {
+    if (!logger) {
+        logger = new Logger(opts)
+        logger.verbose('logging start')
     }
-    return loggers[name]
+    return logger
 }
 
-const setDisable = () => isDisabled = true
-
-module.exports = {getLogger, setDisable}
-
+module.exports = {getLogger}
