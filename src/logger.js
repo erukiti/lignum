@@ -30,7 +30,8 @@ class Logger {
                 }
             }
         }
-        this.level = this._getLogLevel(opts.level || 'info')
+        this.setLevel(opts.level || 'info')
+        this.isVerboseLevel = this.level >= this._getLogLevel('verbose')
 
         this.logs = []
         this.isDisabled = opts.isDisabled
@@ -47,7 +48,7 @@ class Logger {
         const flushConsole = () => {
             this.state = 'standalone'
             this.ws = null
-            flush(log => putConsole(log))
+            flush(log => putConsole(log, this.isVerboseLevel))
         }
 
         if (!this.isDisabled) {
@@ -68,6 +69,7 @@ class Logger {
 
     setLevel(level) {
         this.level = this._getLogLevel(level)
+        this.isVerboseLevel = this.level >= this._getLogLevel('verbose')
     }
 
     _getLogLevel(level) {
@@ -87,7 +89,7 @@ class Logger {
         const log = {name: this.name, at: new Date(), root: this.root, type, args, stack: st.getSync()}
         switch (this.state) {
             case 'standalone': {
-                putConsole(log)
+                putConsole(log, this.isVerboseLevel)
                 break
             }
             case 'opened': {

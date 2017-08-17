@@ -5,24 +5,26 @@ const os = require('os')
 const isNode = typeof process === 'object' && typeof process.versions === 'object' && !!process.versions.node
 
 
-const putConsole = log => {
+const putConsole = (log, isVerboseLevel = false) => {
     if (!isNode) {
         console.log(log.name, log.type, log.args)
         return
     }
 
     let source = ''
-    let i = 0
-    while (i < log.stack.length) {
-        const {fileName, lineNumber, columnNumber} = log.stack[i]
-        if (fileName.indexOf(log.root) === 0) {
-            const relative = fileName.substr(log.root.length + 1)
-            if (relative.indexOf('node_modules/') !== 0) {
-                source = [relative, lineNumber, columnNumber, ' '].join(':')
-                break
+    if (isVerboseLevel) {
+        let i = 0
+        while (i < log.stack.length) {
+            const {fileName, lineNumber, columnNumber} = log.stack[i]
+            if (fileName.indexOf(log.root) === 0) {
+                const relative = fileName.substr(log.root.length + 1)
+                if (relative.indexOf('node_modules/') !== 0) {
+                    source = [relative, lineNumber, columnNumber, ' '].join(':')
+                    break
+                }
             }
+            i++
         }
-        i++
     }
 
     const message = log.args.map(obj => {
@@ -58,11 +60,14 @@ const putConsole = log => {
         case 'error':
             startColor = '\x1b[31m'
             break
-        }
+    }
 
-    const logType = `${log.type}      `.substr(0, 7)
+    const length = isVerboseLevel ? 7 : 5
+     
+    const logType = `${log.type}      `.substr(0, length)
+    const logName = isVerboseLevel ? `\x1b[m${log.name}.` : ''
 
-    process.stdout.write(`\x1b[m${log.name}.${startColor}${logType}\x1b[m \x1b[32m[${at}]\x1b[m ${source}${message}\n`)
+    process.stdout.write(`${logName}${startColor}${logType}\x1b[m \x1b[32m[${at}]\x1b[m ${source}${message}\n`)
 }
 
 module.exports = putConsole

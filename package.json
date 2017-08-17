@@ -1,6 +1,6 @@
 {
   "name": "lignum",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "logging tool",
   "main": "dist/bundle.js",
   "bin": {
