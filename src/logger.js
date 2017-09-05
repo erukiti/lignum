@@ -1,68 +1,77 @@
-const WebSocket = require('ws')
 const st = require('stacktrace-js')
-const putConsole = require('./put-console')
 
-const isNode = typeof process === 'object' && typeof process.versions === 'object' && !!process.versions.node
+const putConsole = require('./put-console')
+const createPutWs = require('./put-ws')
+const Log = require('./log')
+
+const reWsurl = /^ws:\/\/([^:]+):([a-z]+)/
 
 class Logger {
     constructor(opts) {
         this.name = opts.name
         this.root = opts.root
+        this.putFunc = []
+        this.isNode = typeof process === 'object' && typeof process.versions === 'object' && typeof process.versions.node === 'string'
 
-        const traces = st.getSync()
-        if (isNode) {
-            const path = require('path')
-            const fs = require('fs')
-            let i = 0
-            while (path.dirname(traces[i].fileName) === __dirname) {
-                i++
-            }
-            const callerPath = path.dirname(traces[i].fileName).split('/').filter(s => s !== '')
-            while (callerPath.length > 0) {
-                try {
-                    const fn = path.join('/', ...callerPath, 'package.json')
-                    const {name} = JSON.parse(fs.readFileSync(fn))
-                    this.name = name
-                    this.root = path.dirname(fn)
-                    break
-                } catch (e) {
-                    callerPath.pop()
-                }
+        const url = process.env.LIGNUM_WS || opts.ws
+        if (url) {
+            const matched = reWsurl.exec(url)
+            if (matched) {
+                cosnole.log(matched)
+                this.putFunc.push(createPutWs(url))
+            } else {
+                console.error('WebSocket URL is wrong')
             }
         }
+
+        if (!this.isNode) {
+            this.putFunc.push(log => {
+                console.log(log.name, log.type, log.args)
+            })
+        } else {
+            this._findRoot()
+            if (process.env.LIGNUM_FILE) {
+                const fs = require('fs')
+                this.putFunc.push(log => {
+                    putConsole(log, msg => {
+                        fs.appendFileSync(process.env.LIGNUM_FILE, msg)
+                    })
+                })
+            } else {
+                // FIXME: もっと細かく制御
+                this.putFunc.push(log => putConsole(log))
+            }
+        }
+
         this.setLevel(opts.level || 'info')
-        this.isVerboseLevel = this.level >= this._getLogLevel('verbose')
+    }
 
-        this.logs = []
-        this.isDisabled = opts.isDisabled
-        this.isWsOpened = false
-        this.state = 'init'
+    _findRoot() {
+        const traces = st.getSync()
+        const path = require('path')
+        const fs = require('fs')
+        let i = 0
 
-        this.isNode = typeof process === 'object'
-
-        const flush = callback => {
-            this.logs.forEach(callback)
-            this.logs = []
+        while (path.dirname(traces[i].fileName) === __dirname) {
+            i++
+        }
+        const paths = path.dirname(traces[i].fileName).split('/').filter(s => s !== '')
+        // FIXME: global の時にこまりそう
+        while (paths.indexOf('node_modules') !== -1) {
+            paths.pop()
         }
 
-        const flushConsole = () => {
-            this.state = 'standalone'
-            this.ws = null
-            flush(log => putConsole(log, this.isVerboseLevel))
-        }
-
-        if (!this.isDisabled) {
+        while (paths.length > 0) {
             try {
-                this.ws = new WebSocket('ws://localhost:9999/')
-                this.ws.on('open', () => {
-                    this.state = 'opened'
-                    flush(log => this.ws.send(JSON.stringify(log)))
-                })
-                this.ws.on('error', () => {
-                    flushConsole()
-                })
+                const fn = path.join('/', ...paths, 'package.json')
+                // console.log(fn)
+                const {name} = JSON.parse(fs.readFileSync(fn).toString())
+                this.name = name
+                this.root = path.dirname(fn)
+                // console.log(name, this.root)
+                break
             } catch (e) {
-                flushConsole()
+                paths.pop()
             }
         }
     }
@@ -81,48 +90,35 @@ class Logger {
         }
     }
 
-    _putLog(type, args) {
+    put(type, ...args) {
         if (this._getLogLevel(type) > this.level) {
             return
         }
 
-        const log = {name: this.name, at: new Date(), root: this.root, type, args, stack: st.getSync()}
-        switch (this.state) {
-            case 'standalone': {
-                putConsole(log, this.isVerboseLevel)
-                break
-            }
-            case 'opened': {
-                this.ws.send(JSON.stringify(log))
-                break
-            }
-            case 'init': {
-                this.logs.push(log)
-                break
-            }
-        }
+        const log = new Log(this.name, this.root, type, args, st.getSync())
+        this.putFunc.forEach(putFunc => putFunc(log))
     }
 
     info(...args) {
-        this._putLog('info', args)
+        this.put('info', ...args)
     }
 
     log(...args) {
-        this._putLog('verbose', args)
+        this.put('log', ...args)
     }
     verbose(...args) {
-        this._putLog('verbose', args)
+        this.put('log', ...args)
     }
     debug(...args) {
-        this._putLog('debug', args)
+        this.put('debug', ...args)
     }
 
     error(...args) {
-        this._putLog('error', args)
+        this.put('error', ...args)
     }
 
     warn(...args) {
-        this._putLog('warn', args)
+        this.put('warn', ...args)
     }
 }
 
