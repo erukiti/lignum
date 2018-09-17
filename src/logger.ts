@@ -1,20 +1,30 @@
 import * as st from 'stacktrace-js'
 
 import { Log, LogOutputter } from './types'
+import { normalizeTraces } from './utils'
 
 export class Logger {
   name: string
   root: string
+  lignumRoot: string
   loggers: LogOutputter[]
 
-  constructor(name: string, root: string, loggers: LogOutputter[]) {
+  constructor(name: string, root: string, lignumRoot: string, loggers: LogOutputter[]) {
     this.loggers = loggers
     this.name = name
     this.root = root
+    this.lignumRoot = lignumRoot
   }
 
   _putLog(type, args) {
-    const log: Log = { name: this.name, at: new Date(), root: this.root, type, args, stack: st.getSync() }
+    const log: Log = {
+      name: this.name,
+      at: new Date(),
+      root: this.root,
+      type,
+      args,
+      stack: normalizeTraces(st.getSync(), this.lignumRoot)
+    }
     this.loggers.forEach(logger => logger.output(log))
   }
 

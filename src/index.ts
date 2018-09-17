@@ -1,9 +1,12 @@
+import * as path from 'path'
+
 import * as st from 'stacktrace-js'
 
 import { Logger } from './logger'
 import { getCallerRoot } from './get-caller'
 import { ConsoleOutputter } from './console'
 import { createTerminalOutputter } from './terminal'
+import { normalizeTraces } from './utils'
 
 const loggers: { [props: string]: Logger } = {}
 const logOutputters: any = {}
@@ -19,10 +22,16 @@ if (process.env.LIGNUM_FILE && process.env.LIGNUM_FILE !== '') {
   logOutputters.FileOutputter = createTerminalOutputter((s: string) => fs.appendFileSync(process.env.LIGNUM_FILE, s))
 }
 
+let lignumPath = path.dirname(require.resolve('../package.json'))
+
+if (!path.isAbsolute(lignumPath)) {
+  lignumPath = path.dirname(normalizeTraces(st.getSync())[0].fileName)
+}
+
 export const getLogger = (opts = { name: null, root: null }) => {
-  const traces = st.getSync()
-  const callerRoot = getCallerRoot(traces, __dirname)
-  const name = opts.name || callerRoot.name
+  const traces = normalizeTraces(st.getSync())
+  const callerRoot = getCallerRoot(traces, lignumPath)
+  const name = opts.name || callerRoot.name || 'app'
   const root = opts.root || callerRoot.root
 
   if (root in loggers) {
@@ -36,6 +45,6 @@ export const getLogger = (opts = { name: null, root: null }) => {
     return new outputter({ def })
   })
 
-  loggers[root] = new Logger(name, root, outputters)
+  loggers[root] = new Logger(name, root, lignumPath, outputters)
   return loggers[root]
 }
