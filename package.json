@@ -1,28 +1,26 @@
 {
   "name": "lignum",
-  "version": "0.1.1",
+  "version": "0.2.0",
   "description": "logging tool",
-  "main": "dist/bundle.js",
-  "bin": {
-      "lignum-server": "bin/lignum-server"
-  },
+  "main": "dist/index.js",
+  "module": "dist/index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "build": "rollup -c"
+    "build": "rimraf dist/ ; tsc --watch"
   },
   "keywords": [],
   "author": "erukiti - SASAKI Shunsuke <erukiti+github@gmail.com>",
   "license": "Apache-2.0",
   "dependencies": {
-    "bufferutil": "^3.0.1",
+    "bufferutil": "^4.0.0",
     "msgpack-lite": "^0.1.26",
     "stacktrace-js": "^2.0.0",
-    "utf-8-validate": "^3.0.2",
-    "ws": "^3.0.0"
+    "utf-8-validate": "^5.0.1",
+    "ws": "^6.0.0"
   },
   "devDependencies": {
-    "rollup": "^0.43.0",
-    "rollup-plugin-commonjs": "^8.0.2",
-    "rollup-plugin-node-resolve": "^3.0.0"
+    "@types/node": "^10.10.0",
+    "rimraf": "^2.6.2",
+    "typescript": "^3.0.3"
   }
 }
