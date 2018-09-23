@@ -40,7 +40,8 @@ export const getLogger = (opts = { name: null, root: null }) => {
 
   const outputters = Object.keys(logOutputters).map(key => {
     const outputter = logOutputters[key]
-    const def = process.env[`LIGNUM_${key.replace('Outputter', '').toUpperCase()}`]
+    const envName = `LIGNUM_${key.replace('Outputter', '').toUpperCase()}`
+    const def = process.env[envName]
 
     return new outputter({ def })
   })
