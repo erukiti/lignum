@@ -1,31 +1,30 @@
-import * as fs from 'fs'
-
 import * as st from 'stacktrace-js'
 
+import { ConsoleOutputter } from './output/console'
 import { Logger } from './logger'
 import { getCallerRoot } from './get-caller'
 import { createTerminalOutputter } from './output/terminal'
 import { normalizeTraces, getLignumPath } from './utils'
 
-const loggers: { [props: string]: Logger } = {}
-const logOutputters: any = {}
-
-logOutputters.StdoutOutputter = createTerminalOutputter((s: string) => process.stdout.write(s))
-
-if (process.env.LIGNUM_FILE && process.env.LIGNUM_FILE !== '') {
-  logOutputters.FileOutputter = createTerminalOutputter((s: string) => fs.appendFileSync(process.env.LIGNUM_FILE, s))
-}
-
+const isProduction = process.env.NODE_ENV === 'production'
 const lignumPath = getLignumPath()
-export const getLogger = (opts = { name: null, root: null }) => {
+
+// export let getLogger
+const loggers: { [props: string]: Logger } = {}
+
+
+// if (isProduction) {
+export const getLogger = (opts = { name: 'app', root : null} ) => {
   const traces = normalizeTraces(st.getSync())
   const callerRoot = getCallerRoot(traces, lignumPath)
-  const name = opts.name || callerRoot.name || 'app'
+  const name = opts.name || callerRoot.name
   const root = opts.root || callerRoot.root
 
   if (root in loggers) {
     return loggers[root]
   }
+
+  const logOutputters = { ConsoleOutputter }
 
   const outputters = Object.keys(logOutputters).map(key => {
     const outputter = logOutputters[key]

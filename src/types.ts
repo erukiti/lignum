@@ -14,8 +14,16 @@ export interface LogOutputOpt {
   [props: string]: any
 }
 
+type LogTypeEnablers = {
+  info: boolean,
+  verbose: boolean,
+  debug: boolean,
+  error: boolean,
+  warn: boolean
+}
+
 export abstract class LogOutputter {
-  public _types: { [props: string]: boolean } = {
+  public _types: LogTypeEnablers = {
     info: true,
     verbose: false,
     debug: false,
@@ -26,13 +34,14 @@ export abstract class LogOutputter {
   constructor(opt: LogOutputOpt = {}) {
     const def = opt.def
     if (typeof def === 'string' && def) {
-      this._types = {}
+      this._types = { info: false, verbose: false, debug: false, error: false, warn: false }
       def.split(',').forEach(type => (this._types[type] = true))
     }
   }
 
   public output(log: Log): void {
-    if (this._types[log.type]) {
+    const type = log.type.split('.')[0]
+    if (this._types[type]) {
       this._output(log)
     }
   }
